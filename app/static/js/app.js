@@ -67,7 +67,55 @@ function renderDiagnostics(result) {
   });
 
   $("diagChecks").textContent = "Checks run: " + result.checks_run.join(", ");
-  $("diagNotes").textContent = result.notes.join(" ");
+  $("diagNotes").textContent = result.notes.concat(result.scope || []).join(" ");
+}
+
+async function loadProgress() {
+  const dashboard = $("progressDashboard");
+  if (!dashboard) return;
+  try {
+    const response = await fetch("/api/progress");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Your progress report could not be loaded.");
+    }
+    $("analysisCount").textContent = data.total_analyses;
+    $("latestErrors").textContent = data.latest_errors;
+    const trendLabels = {
+      improved: "Fewer issues",
+      unchanged: "Holding steady",
+      more_issues: "More issues",
+      not_enough_data: "Just getting started"
+    };
+    $("progressTrend").textContent = trendLabels[data.trend];
+    $("progressTrend").classList.toggle("positive", data.trend === "improved");
+    $("progressTrend").classList.toggle("caution", data.trend === "more_issues");
+    const detail = data.trend === "not_enough_data"
+      ? "Save at least two reviews to compare your results."
+      : data.change_percent === null
+        ? "No potential issues in the previous review period."
+        : Math.abs(data.change_percent) + "% " +
+          (data.change_percent >= 0 ? "fewer" : "more") +
+          " potential issues on average than the previous " +
+          data.previous_sessions + " review(s).";
+    $("progressDetail").textContent = detail;
+    const bars = $("progressBars");
+    bars.textContent = "";
+    const maxCount = Math.max(1, ...data.history);
+    data.history.slice().reverse().forEach((count, index) => {
+      const bar = document.createElement("span");
+      bar.className = "progress-bar";
+      bar.style.height = Math.max(8, count / maxCount * 100) + "%";
+      bar.title = "Review " + (index + 1) + ": " + count + " potential issues";
+      bar.setAttribute("aria-label", bar.title);
+      bars.appendChild(bar);
+    });
+    if (data.total_analyses === 0) {
+      $("progressMessage").textContent = "Your saved analyses will appear here after your first code review.";
+    }
+  } catch (error) {
+    $("progressMessage").textContent = error.message;
+  }
 }
 
 function renderFix(data, originalCode) {
@@ -86,11 +134,13 @@ function renderFix(data, originalCode) {
     : " Log in to save results to your history.";
   $("verifyNote").textContent = verification.note + " (AI model: " + data.model + ")" + saveNote;
   $("rootCause").textContent = fix.root_cause;
+  $("logicAnalysis").textContent = fix.logic_analysis || fix.beginner_explanation;
   $("beginner").textContent = fix.beginner_explanation;
   $("whyWorks").textContent = fix.why_fix_works;
   $("originalCode").textContent = originalCode;
   $("correctedCode").textContent = fix.corrected_code;
   fillList("changes", fix.changes);
+  fillList("testCases", fix.test_cases || []);
   fillList("prevention", fix.prevention_tips.concat(fix.verification_recommendations));
 
   currentFixed = fix.corrected_code;
@@ -119,7 +169,11 @@ async function analyze() {
         "Content-Type": "application/json",
         "X-CSRFToken": document.querySelector('meta[name="csrf-token"]').content
       },
-      body: JSON.stringify({ code, language: "python" })
+      body: JSON.stringify({
+        code,
+        language: "python",
+        expected_behavior: $("expectedBehavior").value
+      })
     });
     const data = await response.json();
     if (!response.ok) {
@@ -128,6 +182,7 @@ async function analyze() {
     }
     renderDiagnostics(data.analysis);
     renderFix(data, code);
+    loadProgress();
   } catch {
     showError("Could not connect to the app server. Start it with `python wsgi.py`, then refresh and try again.");
   } finally {
@@ -194,3 +249,4 @@ editor.addEventListener("keydown", (event) => {
   }
 });
 updateGutter();
+loadProgress();

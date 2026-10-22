@@ -19,6 +19,18 @@ def test_undefined_name_is_reported_by_ruff():
     assert "F821" in rules
 
 
+def test_risky_mutable_default_is_reported_as_a_bug_pattern():
+    result = analyze_code("def add(item, items=[]):\n    items.append(item)\n    return items\n")
+    diagnostic = next(d for d in result["diagnostics"] if d["rule"] == "B006")
+    assert diagnostic["category"] == "Risky code pattern"
+    assert diagnostic["line"] == 1
+
+
+def test_analysis_scope_explains_static_logic_check_limits():
+    result = analyze_code("print(missing_name)\n")
+    assert "common bug patterns" in result["scope"]
+
+
 def test_api_rejects_empty_code(client):
     res = client.post("/api/analyze", json={"code": "   ", "language": "python"})
     assert res.status_code == 400
@@ -33,3 +45,7 @@ def test_api_analyzes_code(client):
     res = client.post("/api/analyze", json={"code": "print(y)\n", "language": "python"})
     assert res.status_code == 200
     assert res.get_json()["diagnostics"]
+
+
+def test_progress_requires_login(client):
+    assert client.get("/api/progress").status_code == 401

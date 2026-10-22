@@ -70,6 +70,53 @@ def analyze():
     return jsonify(analyze_code(code))
 
 
+@api_bp.get("/progress")
+def progress():
+    if not current_user.is_authenticated:
+        return jsonify(error="Log in to view your progress report."), 401
+
+    sessions = db.session.execute(
+        db.select(DebugSession)
+        .filter_by(user_id=current_user.id)
+        .order_by(DebugSession.created_at.desc(), DebugSession.id.desc())
+        .limit(10)
+    ).scalars().all()
+    total_analyses = db.session.scalar(
+        db.select(db.func.count(DebugSession.id)).filter_by(user_id=current_user.id)
+    ) or 0
+    error_counts = [len(session.diagnostics or []) for session in sessions]
+    period_size = min(5, len(error_counts) // 2)
+    recent = error_counts[:period_size]
+    previous = error_counts[period_size:period_size * 2]
+
+    trend = "not_enough_data"
+    change_percent = None
+    if recent and previous:
+        recent_average = sum(recent) / len(recent)
+        previous_average = sum(previous) / len(previous)
+        if recent_average < previous_average:
+            trend = "improved"
+        elif recent_average > previous_average:
+            trend = "more_issues"
+        else:
+            trend = "unchanged"
+        if previous_average:
+            change_percent = round(
+                (previous_average - recent_average) / previous_average * 100
+            )
+
+    return jsonify(
+        total_analyses=total_analyses,
+        latest_errors=error_counts[0] if error_counts else 0,
+        recent_errors=sum(recent),
+        recent_sessions=len(recent),
+        previous_sessions=len(previous),
+        trend=trend,
+        change_percent=change_percent,
+        history=error_counts,
+    )
+
+
 @api_bp.post("/debug")
 @limiter.limit("3 per minute;20 per hour")
 def debug():
@@ -77,13 +124,21 @@ def debug():
     if err:
         return err
 
+    data = request.get_json(silent=True)
+    expected_behavior = data.get("expected_behavior", "")
+    if not isinstance(expected_behavior, str):
+        return jsonify(error="Expected behavior must be text."), 400
+    expected_behavior = expected_behavior.strip()
+    if len(expected_behavior) > 2000:
+        return jsonify(error="Expected behavior is too long (limit: 2,000 characters)."), 413
+
     analysis = analyze_code(code)
     try:
         client = get_ai_client()
     except AIConfigError as e:
         return jsonify(error=str(e)), 503
 
-    prompt = build_user_prompt(code, analysis["diagnostics"])
+    prompt = build_user_prompt(code, analysis["diagnostics"], expected_behavior or None)
     fix = None
     for _ in range(2):  # one retry if the answer is unusable
         try:

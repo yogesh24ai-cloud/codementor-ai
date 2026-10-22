@@ -1,4 +1,5 @@
 ﻿import json
+from datetime import datetime, timedelta
 
 GOOD = {
     "category": "SyntaxError", "line": 1, "root_cause": "Missing colon.",
@@ -73,3 +74,53 @@ def test_save_failure_does_not_break_the_result(app, monkeypatch):
     assert res.status_code == 200
     assert res.get_json()["saved_id"] is None
     assert res.get_json()["fix"]["category"] == "SyntaxError"
+
+
+def test_progress_compares_recent_reviews_for_the_logged_in_user(app):
+    from app.extensions import db
+    from app.models.history import DebugSession
+    from app.models.user import User
+
+    client = make_user(app, "progress@b.com")
+    with app.app_context():
+        user_id = db.session.execute(
+            db.select(User.id).filter_by(email="progress@b.com")
+        ).scalar_one()
+        for index, error_count in enumerate((4, 4, 2, 2)):
+            db.session.add(DebugSession(
+                user_id=user_id,
+                original_code="pass",
+                diagnostics=[{"rule": "F821"}] * error_count,
+                status="suggested",
+                created_at=datetime(2026, 1, 1) + timedelta(minutes=index),
+            ))
+        db.session.commit()
+
+    data = client.get("/api/progress").get_json()
+    assert data["total_analyses"] == 4
+    assert data["latest_errors"] == 2
+    assert data["trend"] == "improved"
+    assert data["change_percent"] == 50
+    assert data["history"] == [2, 2, 4, 4]
+
+
+def test_progress_only_includes_the_current_users_history(app):
+    from app.extensions import db
+    from app.models.history import DebugSession
+    from app.models.user import User
+    client = make_user(app, "empty@b.com")
+    with app.app_context():
+        owner = User(email="someone-else@b.com", password_hash="unused")
+        db.session.add(owner)
+        db.session.flush()
+        db.session.add(DebugSession(
+            user_id=owner.id,
+            original_code="pass",
+            diagnostics=[{"rule": "F821"}] * 8,
+            status="suggested",
+        ))
+        db.session.commit()
+
+    data = client.get("/api/progress").get_json()
+    assert data["total_analyses"] == 0
+    assert data["history"] == []

@@ -10,7 +10,7 @@ RUFF_TIMEOUT_SECONDS = 10
 def _category_for(rule):
     if rule.startswith("E9"):
         return "Syntax error"
-    if rule.startswith("F"):
+    if rule.startswith(("F", "PL")):
         return "Possible bug"
     if rule.startswith("B"):
         return "Risky code pattern"
@@ -47,7 +47,7 @@ def run_ruff(code):
     cmd = [
         sys.executable, "-m", "ruff", "check",
         "--isolated", "--no-cache",
-        "--select", "E9,F,B",
+        "--select", "E9,F,B,PLE,PLW",
         "--output-format", "json",
         "--stdin-filename", "code.py",
         "-",
@@ -91,7 +91,8 @@ def analyze_code(code):
     if syntax_problems:
         notes.append("Fix the syntax error first. Ruff's other checks run once the code parses.")
         return {"diagnostics": syntax_problems,
-                "checks_run": ["python-ast"], "notes": notes}
+                "checks_run": ["python-ast"], "notes": notes,
+                "scope": "Static checks find common bug patterns; they do not prove logic is correct."}
 
     diagnostics, ruff_note = run_ruff(code)
     checks = ["python-ast"]
@@ -100,4 +101,9 @@ def analyze_code(code):
     else:
         checks.append("ruff")
     diagnostics.sort(key=lambda d: (d["line"] or 0))
-    return {"diagnostics": diagnostics, "checks_run": checks, "notes": notes}
+    return {
+        "diagnostics": diagnostics,
+        "checks_run": checks,
+        "notes": notes,
+        "scope": "Static checks find common bug patterns; they do not prove logic is correct.",
+    }

@@ -4,7 +4,7 @@ A beginner-friendly Python debugging helper. Paste code, see real syntax and Ruf
 findings, then get an AI-suggested fix with simple explanations.
 
 ## What it does
-- Checks Python code with the `ast` parser and Ruff. Code is never executed.
+- Checks Python code with the `ast` parser and Ruff for syntax errors, undefined names, and common risky/bug-prone patterns. The AI also reviews likely behavior and edge cases; sharing what the code is supposed to do makes logic analysis more useful. Code is never executed.
 - Sends the findings to an AI model (Gemini or Claude, set in `.env`).
 - Validates the AI's JSON answer, then re-checks the corrected code.
 - Shows original and corrected code side by side. Copy or download the fix.
@@ -12,7 +12,9 @@ findings, then get an AI-suggested fix with simple explanations.
 ## Honest limits
 - A fix labelled "Statically verified" only passed syntax and Ruff. It may still be wrong.
 - Tests and sandbox execution are not implemented, so there is no "test-verified" label.
-- Only Python is supported. Accounts and saved analysis history are available; saved history includes submitted code.
+- Only Python is supported. Accounts and saved analysis history are available; signed-in users can compare issue counts across their recent reviews. Saved history includes submitted code.
+- Static checks can identify common mistakes, but they cannot prove a program's logic is correct or replace tests written for the program.
+- Logic analysis is an AI-assisted review, not a formal proof. Include the expected behavior and verify suggestions with tests.
 - The editor and sample snippets work without an external editor service.
 - Free AI tiers can be busy or rate limited.
 

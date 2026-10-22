@@ -36,7 +36,7 @@ class ClaudeClient:
 
 
 class GeminiClient:
-    RETRY_CODES = (429, 500, 503, 504)
+    RETRY_CODES = (500, 503, 504)
     WAITS = (2, 5)  # seconds to wait before retry 2 and 3
 
     def __init__(self, api_key, model):
@@ -68,6 +68,8 @@ class GeminiClient:
                 except genai_errors.APIError as e:
                     last_code = getattr(e, "code", None)
                     log.warning("Gemini %s failed (code %s)", model, last_code)
+                    if last_code==429:
+                        break;
                     if last_code not in self.RETRY_CODES:
                         raise AIServiceError("The AI service had a problem. Please try again.")
                     if attempt < len(self.WAITS):

@@ -68,6 +68,11 @@
           autocapitalize="off" autocomplete="off" autocorrect="off"
           placeholder="# Paste or write your Python code here..."></textarea>
       </div>
+      <label class="expected-behavior" for="expectedBehavior">
+        <span>What should this code do? <span class="optional-label">Optional, but helps find logic errors</span></span>
+        <textarea id="expectedBehavior" maxlength="2000" rows="2"
+          placeholder="Example: Return the average of the numbers; for an empty list, return None."></textarea>
+      </label>
       <div class="editor-footer">
         <span><span class="status-dot"></span> Ready when you are</span>
         <button id="analyzeBtn" class="button button-primary" type="button">
@@ -75,6 +80,44 @@
         </button>
       </div>
     </section>
+
+    {% if current_user.is_authenticated %}
+      <section class="progress-section" aria-labelledby="progressTitle">
+        <div class="progress-heading">
+          <div>
+            <span class="section-kicker">YOUR LEARNING JOURNEY</span>
+            <h2 id="progressTitle">Progress, one fix at a time</h2>
+            <p>Track the issues found in your saved code reviews. Fewer findings over time can signal progress.</p>
+          </div>
+          <a class="progress-history-link" href="{{ url_for('history.list_page') }}">View history <span aria-hidden="true">→</span></a>
+        </div>
+        <div id="progressDashboard" class="progress-grid" aria-live="polite">
+          <div class="progress-card progress-lead">
+            <span class="progress-label">ISSUE TREND</span>
+            <strong id="progressTrend" class="progress-value">Loading…</strong>
+            <span id="progressDetail" class="progress-detail">Comparing your latest saved reviews</span>
+            <div id="progressBars" class="progress-bars" aria-label="Issues per recent saved review"></div>
+          </div>
+          <div class="progress-card">
+            <span class="progress-label">REVIEWS SAVED</span>
+            <strong id="analysisCount" class="progress-value">—</strong>
+            <span class="progress-detail">Your personal learning history</span>
+          </div>
+          <div class="progress-card">
+            <span class="progress-label">LATEST REVIEW</span>
+            <strong id="latestErrors" class="progress-value">—</strong>
+            <span class="progress-detail">Potential issues found</span>
+          </div>
+        </div>
+        <p id="progressMessage" class="progress-message small" role="status"></p>
+      </section>
+    {% else %}
+      <aside class="progress-invite">
+        <span class="invite-icon" aria-hidden="true">↗</span>
+        <div><strong>Build your own progress report</strong><p>Create an account to save code reviews and track your improvement over time.</p></div>
+        <a class="button button-secondary" href="{{ url_for('auth.register') }}">Start tracking</a>
+      </aside>
+    {% endif %}
 
     <section id="results" aria-live="polite" aria-atomic="false">
       <div id="state-empty" class="empty-state">
@@ -101,16 +144,24 @@
         <p class="small" id="diagChecks"></p>
         <p class="small" id="diagNotes"></p>
         <div id="diagList"></div>
-        <p class="small">These checks find syntax errors and common mistakes. They cannot prove your code is correct.</p>
+        <p class="small">Checks include syntax, undefined names, and common risky code patterns. They cannot prove your code is correct or replace running tests.</p>
       </div>
 
       <div id="state-success" class="hidden">
         <div class="card">
-          <span class="section-kicker">THE ROOT OF IT</span>
+          <span class="section-kicker">AI CODE REVIEW</span>
           <h2 id="category"></h2>
           <p><span class="chip" id="lineInfo"></span> <span class="chip" id="verifyBadge"></span></p>
           <p id="rootCause"></p>
           <p class="small" id="verifyNote"></p>
+        </div>
+
+        <div class="card">
+          <span class="section-kicker">BEHAVIOR, NOT JUST SYNTAX</span>
+          <h2>Logic review</h2>
+          <p id="logicAnalysis"></p>
+          <h3 class="test-ideas-title">Test ideas to check the behavior</h3>
+          <ul id="testCases"></ul>
         </div>
 
         <div class="card">

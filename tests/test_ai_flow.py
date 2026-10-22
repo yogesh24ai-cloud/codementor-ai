@@ -8,6 +8,8 @@ from app.services.verification import verify_fix
 GOOD = {
     "category": "SyntaxError", "line": 1, "root_cause": "Missing colon.",
     "beginner_explanation": "def lines end with a colon.", "why_fix_works": "Colon starts the block.",
+    "logic_analysis": "The function cannot run until the syntax is fixed.",
+    "test_cases": ["Call f() and expect 1."],
     "prevention_tips": ["End def lines with a colon."], "changes": ["Line 1: added ':'"],
     "corrected_code": "def f():\n    return 1\n", "verification_recommendations": ["Call f()."],
 }
@@ -56,6 +58,35 @@ def test_debug_endpoint_with_fake_ai(client, monkeypatch):
     body = res.get_json()
     assert res.status_code == 200
     assert body["verification"]["status"] == "statically_verified"
+    assert body["fix"]["test_cases"] == ["Call f() and expect 1."]
+
+
+def test_debug_prompt_includes_expected_behavior(client, monkeypatch):
+    class CapturingAI(FakeAI):
+        prompt = ""
+
+        def generate(self, system, user):
+            self.prompt = user
+            return json.dumps(GOOD)
+
+    fake = CapturingAI(json.dumps(GOOD))
+    monkeypatch.setattr("app.routes.api.get_ai_client", lambda: fake)
+    response = client.post("/api/debug", json={
+        "code": "def average(numbers):\n    return sum(numbers) / len(numbers)\n",
+        "expected_behavior": "Return None for an empty list.",
+    })
+    assert response.status_code == 200
+    assert "Return None for an empty list." in fake.prompt
+    assert "Review logic and behavior" in fake.prompt
+
+
+def test_debug_rejects_oversized_expected_behavior(client, monkeypatch):
+    monkeypatch.setattr("app.routes.api.get_ai_client", lambda: FakeAI(json.dumps(GOOD)))
+    response = client.post("/api/debug", json={
+        "code": "x = 1",
+        "expected_behavior": "x" * 2001,
+    })
+    assert response.status_code == 413
 
 
 def test_debug_endpoint_rejects_bad_ai_output(client, monkeypatch):

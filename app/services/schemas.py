@@ -13,6 +13,8 @@ class AIFix(BaseModel):
     root_cause: str = Field(max_length=2000)
     beginner_explanation: str = Field(max_length=3000)
     why_fix_works: str = Field(max_length=3000)
+    logic_analysis: str = Field(default="", max_length=3000)
+    test_cases: list[str] = Field(default_factory=list, max_length=10)
     prevention_tips: list[str] = Field(max_length=10)
     changes: list[str] = Field(max_length=30)
     corrected_code: str = Field(max_length=100_000)
