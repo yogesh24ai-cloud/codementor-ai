@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeMentor AI - History</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1><a class="home" href="{{ url_for('pages.index') }}">CodeMentor AI</a></h1>
+    <nav class="nav"><a href="{{ url_for('pages.index') }}">New analysis</a></nav>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Your history</h2>
+      <p class="small">Your last 50 analyses. The code you submit is stored so you can reopen it. Delete any entry you don't want kept. Times are UTC.</p>
+      {% if not rows %}
+        <p>Nothing saved yet. Analyze some code while logged in and it appears here.</p>
+      {% endif %}
+      {% for r in rows %}
+        <div class="diag">
+          <b>{{ r.created_at.strftime("%d %b %Y %H:%M") }}</b>
+          <span class="chip {{ 'verified' if r.status == 'statically_verified' else 'suggested' }}">
+            {{ "Statically verified" if r.status == "statically_verified" else "Suggested (not verified)" }}
+          </span>
+          {% if r.result %}<span class="chip">{{ r.result.category }}</span>{% endif %}
+          <div class="small">{{ r.original_code[:80] }}{% if r.original_code|length > 80 %}...{% endif %}</div>
+          <div class="controls">
+            <a href="{{ url_for('history.detail', session_id=r.id) }}">Open</a>
+            <form method="post" action="{{ url_for('history.delete', session_id=r.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>

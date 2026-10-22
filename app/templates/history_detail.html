@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeMentor AI - Saved result</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1><a class="home" href="{{ url_for('pages.index') }}">CodeMentor AI</a></h1>
+    <nav class="nav"><a href="{{ url_for('history.list_page') }}">Back to history</a></nav>
+  </header>
+  <main>
+    {% set r = entry.result %}
+    <section class="card">
+      <h2>Saved result, {{ entry.created_at.strftime("%d %b %Y %H:%M") }} UTC</h2>
+      {% if r %}
+        <p>
+          <span class="chip">{{ r.category }}</span>
+          <span class="chip">{{ "Line " ~ r.line if r.line else "Line unknown" }}</span>
+          <span class="chip {{ 'verified' if r.verification_status == 'statically_verified' else 'suggested' }}">
+            {{ "Statically verified" if r.verification_status == "statically_verified" else "Suggested (not verified)" }}
+          </span>
+        </p>
+        <p class="small">{{ r.verification_note }} (AI model: {{ r.model_name }})</p>
+        <p>{{ r.root_cause }}</p>
+      {% else %}
+        <p>No AI result was saved for this entry.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Original code (never changed)</h2>
+      <pre class="code">{{ entry.original_code }}</pre>
+    </section>
+
+    {% if r %}
+    <section class="card">
+      <h2>Suggested correction</h2>
+      <pre class="code">{{ r.corrected_code }}</pre>
+    </section>
+    <section class="card"><h2>In simple words</h2><p>{{ r.beginner_explanation }}</p></section>
+    <section class="card"><h2>Why the fix works</h2><p>{{ r.why_fix_works }}</p></section>
+    <section class="card"><h2>Changes made</h2><ul>{% for c in r.changes_summary %}<li>{{ c }}</li>{% endfor %}</ul></section>
+    <section class="card"><h2>How to avoid this</h2><ul>{% for t in r.prevention_tips %}<li>{{ t }}</li>{% endfor %}</ul></section>
+    {% endif %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="theme-color" content="#111827">
+  <title>CodeMentor AI — Your Python debugging sidekick</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('pages.index') }}">
+      <span class="brand-mark" aria-hidden="true">&lt;/&gt;</span>
+      <span>CodeMentor <span class="brand-accent">AI</span></span>
+    </a>
+    <nav class="nav" aria-label="Main navigation">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('history.list_page') }}">History</a>
+        <span class="who">{{ current_user.email }}</span>
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="linkbtn">Log out</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">Log in</a>
+        <a class="nav-cta" href="{{ url_for('auth.register') }}">Create account</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="live-dot"></span> YOUR PYTHON DEBUGGING SIDEKICK</span>
+        <h1>Make sense of your<br><span>next bug.</span></h1>
+        <p>Paste your Python, spot what’s wrong, and understand how to fix it — one step at a time.</p>
+      </div>
+      <div class="hero-note">
+        <span class="note-icon" aria-hidden="true">✳</span>
+        <p>Your code is checked, never run.</p>
+        <span>Syntax + Ruff checks · AI explanations</span>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Python code editor">
+      <div class="workspace-heading">
+        <div>
+          <span class="section-kicker">THE WORKSPACE</span>
+          <h2>Let’s work through it</h2>
+        </div>
+        <span class="language-pill"><span aria-hidden="true">●</span> Python</span>
+      </div>
+
+      <div class="editor-toolbar">
+        <div class="toolbar-actions">
+          <button id="sampleBtn" class="button button-quiet" type="button">
+            <span aria-hidden="true">↗</span> Load a sample
+          </button>
+          <button id="clearBtn" class="button button-quiet" type="button">Clear</button>
+        </div>
+        <span class="shortcut-hint">Tip: press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to analyze</span>
+      </div>
+
+      <div id="editor" class="editor-shell">
+        <div id="editorGutter" class="editor-gutter" aria-hidden="true"></div>
+        <textarea id="codeInput" aria-label="Python code editor" spellcheck="false"
+          autocapitalize="off" autocomplete="off" autocorrect="off"
+          placeholder="# Paste or write your Python code here..."></textarea>
+      </div>
+      <div class="editor-footer">
+        <span><span class="status-dot"></span> Ready when you are</span>
+        <button id="analyzeBtn" class="button button-primary" type="button">
+          Analyze my code <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="results" aria-live="polite" aria-atomic="false">
+      <div id="state-empty" class="empty-state">
+        <span class="empty-icon" aria-hidden="true">✳</span>
+        <div>
+          <h2>Your next step starts here</h2>
+          <p>Write some Python or load a sample, then analyze it to see what’s going on.</p>
+        </div>
+      </div>
+
+      <div id="state-loading" class="card state hidden">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Taking a closer look at your code…</p>
+      </div>
+
+      <div id="state-error" class="card state error hidden" role="alert">
+        <h2>We hit a snag</h2>
+        <p id="errorText"></p>
+      </div>
+
+      <div id="state-diagnostics" class="card hidden">
+        <span class="section-kicker">THE AUTOMATIC CHECKS</span>
+        <h2 id="diagTitle"></h2>
+        <p class="small" id="diagChecks"></p>
+        <p class="small" id="diagNotes"></p>
+        <div id="diagList"></div>
+        <p class="small">These checks find syntax errors and common mistakes. They cannot prove your code is correct.</p>
+      </div>
+
+      <div id="state-success" class="hidden">
+        <div class="card">
+          <span class="section-kicker">THE ROOT OF IT</span>
+          <h2 id="category"></h2>
+          <p><span class="chip" id="lineInfo"></span> <span class="chip" id="verifyBadge"></span></p>
+          <p id="rootCause"></p>
+          <p class="small" id="verifyNote"></p>
+        </div>
+
+        <div class="card">
+          <span class="section-kicker">A SUGGESTED FIX</span>
+          <h2>Before &amp; after</h2>
+          <div id="diff" class="diff-grid">
+            <section class="diff-pane">
+              <h3>Original</h3>
+              <pre id="originalCode" class="code"></pre>
+            </section>
+            <section class="diff-pane">
+              <h3>Suggested correction</h3>
+              <pre id="correctedCode" class="code"></pre>
+            </section>
+          </div>
+          <div class="controls">
+            <button id="copyBtn" class="button button-secondary" type="button">Copy corrected code</button>
+            <button id="downloadBtn" class="button button-quiet" type="button">Download .py</button>
+            <span id="copyMsg" class="small" role="status"></span>
+          </div>
+        </div>
+
+        <div class="explanation-grid">
+          <div class="card"><span class="section-kicker">IN PLAIN ENGLISH</span><h2>What’s happening</h2><p id="beginner"></p></div>
+          <div class="card"><span class="section-kicker">THE REASONING</span><h2>Why this works</h2><p id="whyWorks"></p></div>
+          <div class="card"><span class="section-kicker">TAKE IT WITH YOU</span><h2>Changes made</h2><ul id="changes"></ul></div>
+          <div class="card"><span class="section-kicker">FOR NEXT TIME</span><h2>How to avoid this</h2><ul id="prevention"></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <p><strong>A careful second pair of eyes.</strong> Your code is parsed and checked, never executed. AI suggestions can still be wrong, so give them a look before using them.</p>
+    </footer>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
